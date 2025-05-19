@@ -1,0 +1,33 @@
+Создадим и наполним таблицу
+```CREATE TABLE jsonb_test (
+    id SERIAL PRIMARY KEY,
+    data JSONB
+);
+
+INSERT INTO jsonb_test (data)
+SELECT jsonb_build_object(
+    'name', 'user_' || i,
+    'email', 'user_' || i || '@example.com',
+    'age', (random() * 100)::int,
+    'bio', repeat('Lorem ipsum dolor sit amet, ', 50)
+)
+FROM generate_series(1, 1000000) AS s(i);```
+
+Повесим индекс
+```CREATE INDEX idx_jsonb_email ON jsonb_test ((data->>'email'));```
+
+Обновим
+```UPDATE jsonb_test
+SET data = jsonb_set(data, '{age}', to_jsonb((random() * 100)::int));```
+
+И посмотри тоаст
+```SELECT 
+  pg_size_pretty(pg_total_relation_size('jsonb_test')) AS total_size,
+  pg_size_pretty(pg_relation_size('jsonb_test')) AS table_only,
+  pg_size_pretty(pg_total_relation_size('jsonb_test') - pg_relation_size('jsonb_test')) AS toast_size;```
+
+Получим:
+total_size	table_only	toast_size
+3246 MB    	3125 MB	    121 MB
+
+Для устранения можно использовать вакуум фулл, пг_репак или создать новую таблиицу
